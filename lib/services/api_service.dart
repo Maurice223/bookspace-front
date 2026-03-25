@@ -6,7 +6,7 @@ import '../models/salle.dart';
 import '../models/reservation.dart';
 
 class ApiService {
-  final String baseUrl = "http://192.168.100.8:8080";
+  final String baseUrl = "https://backend-b.up.railway.app";
 
   // ------------------ UTILISATEUR ------------------
 
@@ -58,9 +58,8 @@ class ApiService {
 
   /// ------------------ SUPPRIMER UTILISATEUR ------------------
   Future<bool> deleteUser(int id) async {
-    final response = await http.delete(
-      Uri.parse('http://192.168.100.8:8080/utilisateurs/delete/$id'),
-    );
+    final response =
+        await http.delete(Uri.parse('$baseUrl/utilisateurs/delete/$id'));
 
     return response.statusCode == 200 || response.statusCode == 204;
   }

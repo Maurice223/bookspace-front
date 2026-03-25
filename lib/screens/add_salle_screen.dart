@@ -23,6 +23,7 @@ class _AddSallePageState extends State<AddSallePage> {
       labelText: label,
       labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
       filled: true,
+      // ignore: deprecated_member_use
       fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
