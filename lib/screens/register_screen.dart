@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -14,34 +16,44 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _formKey = GlobalKey<FormState>();
   final ApiService apiService = ApiService();
 
+  // Contrôleurs
   final TextEditingController prenomController = TextEditingController();
   final TextEditingController nomController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
   bool isLoading = false;
+  bool _isPasswordVisible = false;
+
+  // Design Colors
+  final Color primaryTurquoise = const Color(0xFF26A69A);
+  final Color darkBg = const Color(0xFF0F172A);
+  final Color glassBg = Colors.white.withOpacity(0.1);
 
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _logoScaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
+        vsync: this, duration: const Duration(milliseconds: 1500));
     _fadeAnimation =
         CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
-    _logoScaleAnimation =
-        Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.elasticOut,
-    ));
     _animController.forward();
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    prenomController.dispose();
+    nomController.dispose();
+    usernameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
@@ -51,285 +63,70 @@ class _RegisterScreenState extends State<RegisterScreen>
     setState(() => isLoading = true);
 
     final statusCode = await apiService.register(
-      prenomController.text,
-      nomController.text,
-      emailController.text,
-      passwordController.text,
+      prenomController.text.trim(),
+      nomController.text.trim(),
+      emailController.text.trim(),
+      passwordController.text.trim(),
+      usernameController.text.trim(),
+      phoneController.text.trim(),
     );
 
     setState(() => isLoading = false);
 
     if (statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Inscription réussie"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      _showCustomSnackBar("✅ Inscription réussie !", isError: false);
+      if (mounted) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      }
+    } else if (statusCode == 409) {
+      _showCustomSnackBar("❌ Pseudo ou Email déjà utilisé", isError: true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Email déjà existant"),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showCustomSnackBar("⚠️ Erreur lors de l'inscription ($statusCode)",
+          isError: true);
     }
+  }
+
+  void _showCustomSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor:
+            isError ? Colors.redAccent.withOpacity(0.9) : primaryTurquoise,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        margin: const EdgeInsets.all(20),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       body: Stack(
         children: [
-          // Fond gradient doux
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xff6a11cb), Color(0xff2575fc)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: Center(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 25, vertical: 50),
-                child: ScaleTransition(
-                  scale: _logoScaleAnimation,
-                  child: Container(
-                    padding: const EdgeInsets.all(30),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 25,
-                          offset: Offset(0, 10),
-                        )
-                      ],
-                    ),
+          _buildBlurCircle(300, primaryTurquoise.withOpacity(0.15),
+              top: -100, right: -50),
+          _buildBlurCircle(250, Colors.blueAccent.withOpacity(0.1),
+              bottom: -50, left: -50),
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 25, vertical: 20),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo stylé
-                        Container(
-                          height: 90,
-                          width: 90,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Color(0xff2575fc), Color(0xff6a11cb)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.person_add,
-                            size: 45,
-                            color: Colors.white,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        const Text(
-                          "Créer un compte",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.indigo,
-                          ),
-                        ),
-
+                        _buildHeader(),
+                        const SizedBox(height: 30),
+                        _buildGlassForm(),
                         const SizedBox(height: 25),
-
-                        // Formulaire
-                        Form(
-                          key: _formKey,
-                          child: Column(
-                            children: [
-                              // Prénom
-                              TextFormField(
-                                controller: prenomController,
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.person),
-                                  hintText: "Prénom",
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 20),
-                                ),
-                                validator: (v) =>
-                                    v!.isEmpty ? "Champ requis" : null,
-                              ),
-
-                              const SizedBox(height: 15),
-
-                              // Nom
-                              TextFormField(
-                                controller: nomController,
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.person_outline),
-                                  hintText: "Nom",
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 20),
-                                ),
-                                validator: (v) =>
-                                    v!.isEmpty ? "Champ requis" : null,
-                              ),
-
-                              const SizedBox(height: 15),
-
-                              // Email
-                              TextFormField(
-                                controller: emailController,
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.email),
-                                  hintText: "Email",
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 20),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return "Email requis";
-                                  }
-
-                                  final emailRegex = RegExp(
-                                      r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$');
-
-                                  if (!emailRegex.hasMatch(value)) {
-                                    return "Format email invalide";
-                                  }
-
-                                  return null;
-                                },
-                              ),
-
-                              const SizedBox(height: 15),
-
-                              // Password
-                              TextFormField(
-                                controller: passwordController,
-                                obscureText: true,
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.lock),
-                                  hintText: "Mot de passe",
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 18, horizontal: 20),
-                                ),
-                                validator: (v) =>
-                                    v!.isEmpty ? "Champ requis" : null,
-                              ),
-
-                              const SizedBox(height: 30),
-
-                              // Bouton S'inscrire
-                              SizedBox(
-                                width: double.infinity,
-                                height: 55,
-                                child: ElevatedButton(
-                                  onPressed: isLoading ? null : register,
-                                  style: ElevatedButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(25)),
-                                  ),
-                                  child: Ink(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xff2575fc),
-                                          Color(0xff6a11cb)
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: Container(
-                                      alignment: Alignment.center,
-                                      child: isLoading
-                                          ? const CircularProgressIndicator(
-                                              color: Colors.white)
-                                          : const Text(
-                                              "S'inscrire",
-                                              style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white),
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // Lien vers login
-                              MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => const LoginScreen()),
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Text(
-                                        "Vous avez déjà un compte ? ",
-                                        style: TextStyle(color: Colors.grey),
-                                      ),
-                                      Icon(Icons.arrow_forward,
-                                          color: Color(0xff2575fc), size: 16),
-                                      SizedBox(width: 5),
-                                      Text(
-                                        "Connectez-vous",
-                                        style: TextStyle(
-                                            color: Color(0xff2575fc),
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildFooter(),
                       ],
                     ),
                   ),
@@ -338,6 +135,226 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        const Text("BookSpace",
+            style: TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 1.5)),
+        Text("Rejoignez l'aventure",
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16)),
+      ],
+    );
+  }
+
+  Widget _buildGlassForm() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(25),
+          decoration: BoxDecoration(
+            color: glassBg,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField(
+                            controller: prenomController,
+                            hint: "Prénom",
+                            icon: Icons.person_outline)),
+                    const SizedBox(width: 15),
+                    Expanded(
+                        child: _buildTextField(
+                            controller: nomController,
+                            hint: "Nom",
+                            icon: Icons.badge_outlined)),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                _buildTextField(
+                    controller: usernameController,
+                    hint: "Nom d'utilisateur",
+                    icon: Icons.alternate_email),
+                const SizedBox(height: 15),
+                _buildTextField(
+                    controller: emailController,
+                    hint: "E-mail",
+                    icon: Icons.email_outlined,
+                    type: TextInputType.emailAddress),
+                const SizedBox(height: 15),
+
+                // ✅ TÉLÉPHONE (8-12 chiffres)
+                _buildTextField(
+                    controller: phoneController,
+                    hint: "Téléphone",
+                    icon: Icons.phone_android_outlined,
+                    isPhone: true),
+
+                const SizedBox(height: 15),
+
+                // ✅ MOT DE PASSE (Min 8 car + 1 Lettre + 1 Chiffre)
+                _buildTextField(
+                    controller: passwordController,
+                    hint: "Mot de passe",
+                    icon: Icons.lock_outline,
+                    isPassword: true,
+                    isPasswordField: true),
+
+                const SizedBox(height: 30),
+                _buildRegisterButton(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    bool isPhone = false,
+    bool isPasswordField = false,
+    TextInputType type = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword ? !_isPasswordVisible : false,
+      keyboardType: isPhone ? TextInputType.number : type,
+      inputFormatters: isPhone
+          ? [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(12)
+            ]
+          : null,
+      style: const TextStyle(color: Colors.white, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 14),
+        prefixIcon: Icon(icon, color: primaryTurquoise, size: 20),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                    color: Colors.white30),
+                onPressed: () =>
+                    setState(() => _isPasswordVisible = !_isPasswordVisible),
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.05),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.white10)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: primaryTurquoise)),
+        errorStyle: const TextStyle(color: Colors.orangeAccent),
+      ),
+      validator: (v) {
+        if (v == null || v.isEmpty) return "Champ requis";
+        if (isPhone) {
+          if (v.length < 8) return "Min. 8 chiffres";
+          if (v.length > 12) return "Max. 12 chiffres";
+        }
+        if (isPasswordField) {
+          if (v.length < 8) return "Min. 8 caractères";
+          if (!v.contains(RegExp(r'[0-9]'))) return "Ajoutez un chiffre";
+          if (!v.contains(RegExp(r'[a-zA-Z]'))) return "Ajoutez une lettre";
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    return Container(
+      width: double.infinity,
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+              color: primaryTurquoise.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6))
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : register,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryTurquoise,
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 0,
+        ),
+        child: isLoading
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
+            : const Text("CRÉER MON COMPTE",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return TextButton(
+      onPressed: () => Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+      child: RichText(
+        text: TextSpan(
+          text: "Déjà un membre ? ",
+          style: TextStyle(color: Colors.white.withOpacity(0.5)),
+          children: [
+            TextSpan(
+                text: "Se connecter",
+                style: TextStyle(
+                    color: primaryTurquoise, fontWeight: FontWeight.bold))
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlurCircle(double size, Color color,
+      {double? top, double? bottom, double? left, double? right}) {
+    return Positioned(
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+            child: Container(color: Colors.transparent)),
       ),
     );
   }

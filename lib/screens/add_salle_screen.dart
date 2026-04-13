@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -13,21 +14,30 @@ class _AddSallePageState extends State<AddSallePage> {
   final TextEditingController capaciteController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController imageUrlController = TextEditingController();
+
+  // ✅ On remplace le booléen par un String pour le type
+  String selectedType = "COURS";
+
   final ApiService api = ApiService();
-
   bool isLoading = false;
-  bool isDark = true;
 
-  InputDecoration inputStyle(String label) {
+  final Color primaryTurquoise = const Color(0xFF26A69A);
+  final Color darkBg = const Color(0xFF0F172A);
+
+  InputDecoration inputStyle(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+      labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
+      prefixIcon: Icon(icon, color: primaryTurquoise, size: 20),
       filled: true,
-      // ignore: deprecated_member_use
-      fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-      border: OutlineInputBorder(
+      fillColor: Colors.white.withOpacity(0.05),
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: primaryTurquoise, width: 1.5),
       ),
     );
   }
@@ -37,136 +47,200 @@ class _AddSallePageState extends State<AddSallePage> {
         capaciteController.text.isEmpty ||
         descriptionController.text.isEmpty ||
         imageUrlController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Tous les champs sont requis")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.orangeAccent,
+          content: Text("Veuillez remplir tous les champs")));
       return;
     }
 
     setState(() => isLoading = true);
 
-    bool success = await api.addSalle(
-      nomController.text,
-      int.tryParse(capaciteController.text) ?? 0,
-      imageUrlController.text,
-      descriptionController.text,
-    );
+    try {
+      // ✅ APPEL API CORRIGÉ : On envoie le 'selectedType' (String)
+      bool success = await api.addSalle(
+        nomController.text,
+        int.tryParse(capaciteController.text) ?? 0,
+        imageUrlController.text,
+        descriptionController.text,
+        selectedType, // Passage du String "TP" ou "COURS"
+      );
 
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(success ? "Salle ajoutée" : "Erreur ajout salle")));
-
-    if (success) {
-      nomController.clear();
-      capaciteController.clear();
-      imageUrlController.clear();
-      descriptionController.clear();
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text("🎉 Salle créée avec succès !")));
+          Navigator.pop(context, true);
+        }
+      } else {
+        throw Exception("Erreur serveur");
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text("Erreur lors de la création de la salle")));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDark
-                ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-                : [const Color(0xFFF8FAFC), const Color(0xFFE2E8F0)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+      backgroundColor: darkBg,
+      body: Stack(
+        children: [
+          Positioned(
+              top: -100,
+              right: -50,
+              child: _buildBlurCircle(250, primaryTurquoise.withOpacity(0.1))),
+          SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Ajouter une salle",
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Switch(
-                      value: isDark,
-                      onChanged: (v) {
-                        setState(() {
-                          isDark = v;
-                        });
-                      },
-                    )
-                  ],
-                ),
-                const SizedBox(height: 20),
+                _buildTopBar(),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: nomController,
-                          style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black),
-                          decoration: inputStyle("Nom de la salle"),
-                        ),
-                        const SizedBox(height: 15),
-                        TextField(
-                          controller: capaciteController,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black),
-                          decoration: inputStyle("Capacité"),
-                        ),
-                        const SizedBox(height: 15),
-                        TextField(
-                          controller: descriptionController,
-                          style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black),
-                          decoration: inputStyle("Description"),
-                        ),
-                        const SizedBox(height: 15),
-                        TextField(
-                          controller: imageUrlController,
-                          style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black),
-                          decoration: inputStyle("URL de l'image"),
-                        ),
-                        const SizedBox(height: 25),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            onPressed: isLoading ? null : addSalle,
-                            child: isLoading
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white)
-                                : const Text(
-                                    "Ajouter",
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: _buildFormCard(),
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const Text("Nouvelle Salle",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
+    return Container(
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+              controller: nomController,
+              style: const TextStyle(color: Colors.white),
+              decoration:
+                  inputStyle("Nom de la salle", Icons.meeting_room_rounded)),
+          const SizedBox(height: 15),
+          TextField(
+              controller: capaciteController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: inputStyle("Capacité", Icons.people_alt_rounded)),
+
+          const SizedBox(height: 15),
+          // ✅ NOUVEAU : SÉLECTEUR DE TYPE (TP / COURS)
+          _buildTypeSelector(),
+
+          const SizedBox(height: 15),
+          TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white),
+              decoration: inputStyle("Description", Icons.description_rounded)),
+          const SizedBox(height: 15),
+          TextField(
+              controller: imageUrlController,
+              style: const TextStyle(color: Colors.white),
+              decoration:
+                  inputStyle("Image (ex: salle1.jpg)", Icons.image_rounded)),
+          const SizedBox(height: 30),
+          _buildSubmitButton(),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Widget pour choisir entre TP et COURS
+  Widget _buildTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedType,
+          dropdownColor: darkBg,
+          isExpanded: true,
+          icon: Icon(Icons.keyboard_arrow_down, color: primaryTurquoise),
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          items: ["COURS", "TP"].map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            setState(() {
+              selectedType = newValue!;
+            });
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return GestureDetector(
+      onTap: isLoading ? null : addSalle,
+      child: Container(
+        height: 55,
+        decoration: BoxDecoration(
+          gradient:
+              LinearGradient(colors: [primaryTurquoise, Colors.blueAccent]),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Center(
+          child: isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text("CRÉER LA SALLE",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

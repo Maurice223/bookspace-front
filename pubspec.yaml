@@ -20,6 +20,7 @@ dependencies:
   image_picker: ^0.8.7+4 
   file_picker: ^10.3.10
   google_fonts: ^8.0.2
+  flutter_staggered_animations: ^1.1.1
 
 
 flutter:
@@ -28,3 +29,16 @@ flutter:
 
   assets:
     - assets/images/
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: "^0.13.1" # Ajoute cette ligne
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/icon.png" # Chemin vers ton image
+  adaptive_icon_background: "#FFFFFF" # Couleur de fond (ex: blanc)
+  adaptive_icon_foreground: "assets/icon/icon.png"

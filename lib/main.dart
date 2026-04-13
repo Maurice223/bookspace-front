@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
         },
         '/mes_reservations': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as String;
-          return MesReservationsScreen(email: args);
+          return MesReservationsScreen(utilisateurEmail: args);
         },
 
         // Pages admin

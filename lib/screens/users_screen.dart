@@ -1,6 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../services/api_service.dart';
+import '../models/utilisateur.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -10,8 +11,15 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  List<dynamic> allUsers = [];
-  List<dynamic> filteredUsers = [];
+  final ApiService apiService = ApiService();
+
+  // Palette de couleurs Premium
+  final Color primaryColor = const Color(0xFF26A69A); // Turquoise
+  final Color secondaryColor = const Color(0xFF4FC3F7); // Bleu ciel
+  final Color darkBg = const Color(0xFF0F172A); // Bleu nuit profond
+
+  List<Utilisateur> allUsers = [];
+  List<Utilisateur> filteredUsers = [];
   bool isLoading = true;
 
   final TextEditingController searchController = TextEditingController();
@@ -19,226 +27,252 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   void initState() {
     super.initState();
-    fetchUsers();
+    loadUsers();
   }
 
-  // ================= API =================
-  Future<void> fetchUsers() async {
+  Future<void> loadUsers() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
 
     try {
-      final response =
-          await http.get(Uri.parse('http://192.168.100.8:8080/utilisateurs'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      final data = await apiService.getAllUtilisateurs();
+      if (mounted) {
         setState(() {
           allUsers = data;
           filteredUsers = data;
           isLoading = false;
         });
-      } else {
-        throw Exception('Erreur récupération utilisateurs');
       }
     } catch (e) {
-      setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur API: $e")),
-      );
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // ================= DELETE =================
-  Future<void> deleteUser(int id) async {
-    try {
-      final response = await http.delete(
-          Uri.parse('http://192.168.100.8:8080/utilisateurs/delete/$id'));
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Utilisateur supprimé")),
-        );
-        fetchUsers();
-      } else {
-        throw Exception("Erreur suppression");
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur suppression: $e")),
-      );
-    }
-  }
-
-  // ================= SEARCH =================
+  // ================= RECHERCHE NOM + PRENOM =================
   void filterUsers(String query) {
+    final String q = query.toLowerCase();
+
     final results = allUsers.where((u) {
-      final nom = (u['nom'] ?? '').toLowerCase();
-      final email = (u['email'] ?? '').toLowerCase();
-      return nom.contains(query.toLowerCase()) ||
-          email.contains(query.toLowerCase());
+      final String fullSearch = "${u.nom} ${u.prenom}".toLowerCase();
+      // On cherche dans le nom, le prénom, ET la combinaison des deux
+      return fullSearch.contains(q) ||
+          (u.nom?.toLowerCase().contains(q) ?? false) ||
+          (u.prenom?.toLowerCase().contains(q) ?? false);
     }).toList();
 
     setState(() => filteredUsers = results);
   }
 
-  // ================= CONFIRM DELETE =================
-  void confirmDelete(int id, String name) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Confirmation"),
-        content: Text("Supprimer l'utilisateur $name ?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Annuler"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+  // ================= UI COMPONENTS =================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: darkBg,
+      body: Stack(
+        children: [
+          // Background décoratif (Gradients diffus)
+          Positioned(
+              top: -100,
+              right: -50,
+              child: _buildBlurCircle(250, primaryColor.withOpacity(0.15))),
+          Positioned(
+              bottom: -50,
+              left: -50,
+              child: _buildBlurCircle(200, secondaryColor.withOpacity(0.1))),
+
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildSearchBar(),
+                Expanded(
+                  child: isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(color: primaryColor))
+                      : _buildUserList(),
+                ),
+              ],
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              deleteUser(id);
-            },
-            child: const Text("Supprimer"),
           ),
         ],
       ),
     );
   }
 
-  // ================= UI =================
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-
-              // 🔥 TITLE
-              const Text(
-                "Gestion des utilisateurs",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                        blurRadius: 6,
-                        color: Colors.black45,
-                        offset: Offset(1, 2))
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 🔍 SEARCH
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  controller: searchController,
-                  onChanged: filterUsers,
-                  decoration: InputDecoration(
-                    hintText: "Rechercher un utilisateur...",
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.95),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // 📋 LIST USERS
-              Expanded(
-                child: isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Colors.white))
-                    : filteredUsers.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "Aucun utilisateur trouvé",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 18),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: filteredUsers.length,
-                            itemBuilder: (context, index) {
-                              final u = filteredUsers[index];
-
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-
-                                  // 👤 AVATAR
-                                  leading: CircleAvatar(
-                                    radius: 25,
-                                    backgroundColor: Colors.deepPurple,
-                                    child: Text(
-                                      u['nom'] != null && u['nom'].isNotEmpty
-                                          ? u['nom'][0].toUpperCase()
-                                          : "?",
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-
-                                  // INFOS
-                                  title: Text(
-                                    '${u['nom'] ?? ''} ${u['prenom'] ?? ''}',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(u['email'] ?? ''),
-
-                                  // ACTIONS
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    onPressed: () =>
-                                        confirmDelete(u['id'], u['nom'] ?? ''),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-              ),
+              const Text("Gestion Membres",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5)),
+              Text("${filteredUsers.length} utilisateurs actifs",
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.5), fontSize: 14)),
             ],
+          ),
+          Container(
+            decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(15)),
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              onPressed: loadUsers,
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: TextField(
+            controller: searchController,
+            onChanged: filterUsers,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: "Rechercher par nom ou prénom...",
+              hintStyle: const TextStyle(color: Colors.white24),
+              prefixIcon: Icon(Icons.search_rounded, color: primaryColor),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              contentPadding: const EdgeInsets.symmetric(vertical: 20),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: primaryColor.withOpacity(0.3))),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUserList() {
+    if (filteredUsers.isEmpty) {
+      return Center(
+          child: Text("Aucun utilisateur trouvé",
+              style: TextStyle(color: Colors.white.withOpacity(0.2))));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+      itemCount: filteredUsers.length,
+      itemBuilder: (context, index) => _buildUserCard(filteredUsers[index]),
+    );
+  }
+
+  Widget _buildUserCard(Utilisateur u) {
+    String initial =
+        (u.nom != null && u.nom!.isNotEmpty) ? u.nom![0].toUpperCase() : "?";
+    bool isAdmin = u.role?.toUpperCase() == "ADMIN";
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Avatar Stylisé
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient:
+                        LinearGradient(colors: [primaryColor, secondaryColor]),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                      child: Text(initial,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold))),
+                ),
+                const SizedBox(width: 16),
+                // Infos
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("${u.nom} ${u.prenom}",
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(u.email ?? "",
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.4),
+                              fontSize: 13)),
+                      const SizedBox(height: 8),
+                      // Badge Role
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isAdmin ? Colors.orange : primaryColor)
+                              .withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(u.role ?? "USER",
+                            style: TextStyle(
+                                color: isAdmin
+                                    ? Colors.orangeAccent
+                                    : primaryColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900)),
+                      ),
+                    ],
+                  ),
+                ),
+                // Actions
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.redAccent, size: 28),
+                  onPressed: () {/* Ta fonction delete */},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+          child: Container(color: Colors.transparent)),
     );
   }
 }

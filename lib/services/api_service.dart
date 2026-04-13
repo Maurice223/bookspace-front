@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/utilisateur.dart';
@@ -6,14 +7,13 @@ import '../models/salle.dart';
 import '../models/reservation.dart';
 
 class ApiService {
-  final String baseUrl = "https://backend-b.up.railway.app";
+  final String baseUrl = "https://bookspace-backend-production.up.railway.app";
 
   // ------------------ UTILISATEUR ------------------
 
-  Future<int> register(
-      String prenom, String nom, String email, String password) async {
+  Future<int> register(String prenom, String nom, String email, String password,
+      String nomUtilisateur, String telephone) async {
     final url = Uri.parse('$baseUrl/utilisateurs');
-
     try {
       final response = await http.post(
         url,
@@ -23,141 +23,127 @@ class ApiService {
           "nom": nom,
           "email": email,
           "password": password,
+          "nomUtilisateur": nomUtilisateur,
+          "telephone": telephone,
+          "role": "USER",
         }),
       );
       return response.statusCode;
     } catch (e) {
-      print("Erreur register: $e");
       return 0;
     }
   }
 
-  Future<Map<String, dynamic>?> login(String email, String password) async {
+  Future<Map<String, dynamic>?> login(
+      String nomUtilisateur, String password) async {
     try {
       final response = await http.post(
         Uri.parse("$baseUrl/utilisateurs/login"),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"email": email, "password": password}),
+        body: jsonEncode(
+            {"nomUtilisateur": nomUtilisateur, "password": password}),
       );
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Erreur login: $e");
+      print("Erreur connexion login: $e");
     }
     return null;
   }
 
-  Future<Utilisateur?> getUtilisateur(String email) async {
-    final response = await http.get(Uri.parse('$baseUrl/utilisateurs/$email'));
-    if (response.statusCode == 200) {
-      return Utilisateur.fromJson(jsonDecode(response.body));
-    }
-    return null;
-  }
-
-  /// ------------------ SUPPRIMER UTILISATEUR ------------------
-  Future<bool> deleteUser(int id) async {
-    final response =
-        await http.delete(Uri.parse('$baseUrl/utilisateurs/delete/$id'));
-
-    return response.statusCode == 200 || response.statusCode == 204;
-  }
-
-  /// ------------------ STATS ------------------
-  Future<Map<String, dynamic>> getStats() async {
-    final res = await http.get(Uri.parse("$baseUrl/stats"));
-    if (res.statusCode == 200) {
-      return json.decode(res.body);
-    } else {
-      throw Exception("Erreur stats");
-    }
-  }
-
-  Future<int> getUsersCount() async {
-    final response = await http.get(Uri.parse("$baseUrl/utilisateurs/count"));
-    return int.tryParse(response.body) ?? 0;
-  }
-
-  Future<List<dynamic>> fetchUsers() async {
-    final response = await http.get(Uri.parse('$baseUrl/utilisateurs'));
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Erreur récupération utilisateurs');
+  Future<Utilisateur?> getUtilisateur(String username) async {
+    try {
+      final response =
+          await http.get(Uri.parse('$baseUrl/utilisateurs/$username'));
+      if (response.statusCode == 200) {
+        return Utilisateur.fromJson(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
   // ------------------ SALLE ------------------
 
   Future<List<Salle>> getAllSalles() async {
-    final response = await http.get(Uri.parse("$baseUrl/salles"));
-    if (response.statusCode == 200) {
-      List data = jsonDecode(response.body);
-      return data.map<Salle>((e) => Salle.fromJson(e)).toList();
-    } else {
-      throw Exception("Erreur chargement salles");
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/salles"));
+      if (response.statusCode == 200) {
+        List data = jsonDecode(response.body);
+        return data.map<Salle>((e) => Salle.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
     }
   }
 
-  Future<Salle> getSalleById(int id) async {
-    final response = await http.get(Uri.parse("$baseUrl/salles/$id"));
-    if (response.statusCode == 200) {
-      return Salle.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception("Erreur récupération salle");
-    }
+  // ✅ AJOUT D'UNE SALLE (Mise à jour pour inclure le TYPE)
+  Future<bool> addSalle(String nom, int capacite, String image,
+      String description, String type) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/salles'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        "nom": nom,
+        "capacite": capacite,
+        "image": image,
+        "description": description,
+        "type": type, // "TP" ou "COURS"
+        "reservee": false,
+      }),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  Future<bool> addSalle(
-      String nom, int capacite, String image, String description) async {
+  Future<bool> deleteSalle(int id) async {
+    final response = await http.delete(Uri.parse("$baseUrl/salles/delete/$id"));
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
+
+  // ------------------ RÉSERVATION (LOGIQUE 3H) ------------------
+
+  // ✅ MISE À JOUR : Envoie un JSON avec Date et Créneau
+  Future<bool> reserverSalleAvecDate(
+      int salleId, String email, DateTime date, String creneau) async {
+    final formattedDate =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+    final url = Uri.parse("$baseUrl/reservations/reserver");
+
     try {
       final response = await http.post(
-        Uri.parse("$baseUrl/salles"),
+        url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "nom": nom,
-          "capacite": capacite,
-          "image": image,
-          "description": description,
+          "salleId": salleId,
+          "utilisateurEmail": email,
+          "date": formattedDate,
+          "creneau": creneau, // Ex: "08:00 - 11:00"
         }),
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+      return response.statusCode == 200;
     } catch (e) {
-      print("Erreur addSalle: $e");
+      print("Erreur réservation API: $e");
       return false;
     }
   }
 
-  Future<bool> deleteSalle(int id) async {
-    final response = await http.delete(
-      Uri.parse(
-          "$baseUrl/salles/delete/$id"), // <-- ici correspond au DeleteMapping
-    );
-    return response.statusCode == 200 || response.statusCode == 204;
-  }
-
-  // ------------------ RÉSERVATION ------------------
-
-  Future<bool> reserverSalleAvecDate(
-      int salleId, String email, DateTime date) async {
+  // ✅ MISE À JOUR : Vérifie si un créneau précis est libre
+  Future<bool> verifierDisponibilite(
+      int salleId, DateTime date, String creneau) async {
     final formattedDate =
         "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    final url = Uri.parse(
-        "$baseUrl/reservations/reserver?salleId=$salleId&utilisateurEmail=$email&date=$formattedDate");
-    final response = await http.post(url);
-    return response.statusCode == 200;
-  }
 
-  Future<bool> verifierDisponibilite(int salleId, DateTime date) async {
-    final formattedDate =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
     final url = Uri.parse(
-        "$baseUrl/reservations/disponible?salleId=$salleId&date=$formattedDate");
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      return response.body == "true";
-    } else {
+        "$baseUrl/reservations/disponible?salleId=$salleId&date=$formattedDate&creneau=$creneau");
+
+    try {
+      final response = await http.get(url);
+      return response.statusCode == 200 && response.body == "true";
+    } catch (e) {
       return false;
     }
   }
@@ -169,35 +155,122 @@ class ApiService {
       if (response.statusCode == 200) {
         List data = jsonDecode(response.body);
         return data.map((r) => Reservation.fromJson(r)).toList();
-      } else {
-        throw Exception("Erreur chargement réservations");
       }
+      return [];
     } catch (e) {
-      print("Erreur reservations: $e");
       return [];
     }
   }
 
   Future<void> annulerReservation(int id) async {
-    final response = await http.delete(Uri.parse("$baseUrl/reservations/$id"));
-    if (response.statusCode != 200) {
-      throw Exception("Erreur suppression réservation");
+    await http.delete(Uri.parse("$baseUrl/reservations/$id"));
+  }
+
+  // ------------------ ADMIN & STATS ------------------
+
+  Future<List<Utilisateur>> getAllUtilisateurs() async {
+    final response = await http.get(Uri.parse("$baseUrl/utilisateurs"));
+    if (response.statusCode == 200) {
+      List<dynamic> body = json.decode(response.body);
+      return body.map((item) => Utilisateur.fromJson(item)).toList();
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getStats() async {
+    try {
+      final res =
+          await http.get(Uri.parse("$baseUrl/stats")); // Ou l'URL de tes stats
+      if (res.statusCode == 200) return json.decode(res.body);
+    } catch (e) {
+      print("Erreur stats: $e");
+    }
+    // Retour par défaut pour éviter le crash
+    return {"utilisateurs": 0, "salles": 0, "reservations": 0};
+  }
+
+  Future<Salle> getSalleById(int id) async {
+    final response = await http.get(Uri.parse("$baseUrl/salles/$id"));
+    if (response.statusCode == 200) {
+      return Salle.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception("Erreur récupération salle");
     }
   }
 
-  Future<List<Reservation>> fetchReservations() async {
-    final response = await http.get(Uri.parse('$baseUrl/reservations/all'));
-
+  Future<List<Reservation>> getAllReservations() async {
+    final response = await http.get(Uri.parse("$baseUrl/reservations/all"));
     if (response.statusCode == 200) {
-      List data = jsonDecode(response.body);
-      return data.map((r) => Reservation.fromJson(r)).toList();
-    } else {
-      throw Exception("Erreur chargement réservations");
+      List data = json.decode(response.body);
+      return data.map((item) => Reservation.fromJson(item)).toList();
     }
+    return [];
+  }
+
+  // ------------------ MESSAGES ------------------
+
+  Future<bool> broadcastMessage(String titre, String contenu) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/messages/broadcast'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'titre': titre, 'contenu': contenu}),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  Future<List<dynamic>> fetchMessages() async {
+    final response = await http.get(Uri.parse('$baseUrl/messages/all'));
+    return response.statusCode == 200 ? jsonDecode(response.body) : [];
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+  }
+
+//--------------------Mot de passe ---------------------
+  Future<Map<String, dynamic>> modifierMotDePasse(
+      String email, String ancien, String nouveau) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/modifier-password'), // Ton URL Spring Boot
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "email": email,
+          "ancienPassword": ancien,
+          "nouveauPassword": nouveau,
+        }),
+      );
+
+      // Spring Boot renvoie un objet JSON
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {"success": false, "message": "Erreur serveur : $e"};
+    }
+  }
+
+  Future<List<String>> getOccupiedSlots(int salleId, DateTime date) async {
+    try {
+      // On formate la date en yyyy-MM-dd pour que Spring Boot la comprenne bien
+      String formattedDate =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+      final response = await http.get(
+        Uri.parse(
+            '$baseUrl/reservations/occupations?salleId=$salleId&date=$formattedDate'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        // On transforme la liste dynamique en liste de String
+        return data.map((slot) => slot.toString()).toList();
+      } else {
+        return []; // Retourne une liste vide si erreur
+      }
+    } catch (e) {
+      debugPrint("Erreur getOccupiedSlots: $e");
+      return [];
+    }
   }
 }

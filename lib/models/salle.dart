@@ -6,6 +6,7 @@ class Salle {
   int capacite;
   String image;
   String description;
+  String type; // ✅ "TP" ou "COURS"
   bool reservee;
 
   Salle(
@@ -14,10 +15,12 @@ class Salle {
     this.capacite,
     this.image,
     this.description, {
+    this.type =
+        "COURS", // ✅ Par défaut, on considère que c'est une salle de cours
     this.reservee = false,
   });
 
-  /// 🔹 JSON → Objet
+  /// 🔹 JSON → Objet (Désérialisation)
   static Salle fromJson(Map<String, dynamic> json) {
     return Salle(
       json['id'],
@@ -25,11 +28,12 @@ class Salle {
       json['capacite'],
       json['image'] ?? '',
       json['description'] ?? '',
+      type: json['type'] ?? 'COURS', // ✅ Récupère le type du JSON
       reservee: json['reservee'] ?? false,
     );
   }
 
-  /// 🔹 Objet → JSON
+  /// 🔹 Objet → JSON (Sérialisation)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -37,6 +41,7 @@ class Salle {
       'capacite': capacite,
       'image': image,
       'description': description,
+      'type': type, // ✅ Ajouté au JSON
       'reservee': reservee,
     };
   }

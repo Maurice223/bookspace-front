@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/utilisateur.dart';
 import '../services/api_service.dart';
@@ -15,196 +16,282 @@ class _ProfilScreenState extends State<ProfilScreen>
     with SingleTickerProviderStateMixin {
   final ApiService apiService = ApiService();
 
+  // Palette de couleurs Premium
+  final Color primaryTurquoise = const Color(0xFF26A69A);
+  final Color darkBg = const Color(0xFF0F172A);
+
   bool isLoading = false;
   Utilisateur? utilisateur;
-
-  late ScrollController _scrollController;
-  double _avatarScale = 1.0;
-
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadUtilisateur();
-
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-
-    // Animations douces
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation =
-        CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
-            .animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-
-    _animationController.forward();
-  }
-
-  void _onScroll() {
-    double offset = _scrollController.offset;
-    setState(() {
-      _avatarScale = 1 - (offset / 500).clamp(0.0, 0.2);
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadUtilisateur() async {
     setState(() => isLoading = true);
     utilisateur = await apiService.getUtilisateur(widget.utilisateurEmail);
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false);
   }
 
-  Color getColorFromName(String name) {
-    final colors = [
-      Colors.indigo,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-    ];
-    return colors[name.length % colors.length];
+  // --- FONCTION DE MESSAGE TEMPORAIRE ---
+  void _showComingSoonMessage(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.construction_rounded,
+                color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "L'option '$feature' est en cours de développement 🚀",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: primaryTurquoise.withOpacity(0.9),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        margin: const EdgeInsets.all(20),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBg,
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: primaryTurquoise))
           : utilisateur == null
-              ? const Center(child: Text("Erreur lors du chargement"))
+              ? _buildErrorState()
               : Stack(
                   children: [
-                    // Background gradient subtil
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xff6a11cb), Color(0xff2575fc)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
+                    // Effet de halo lumineux
+                    Positioned(
+                      top: -100,
+                      right: -50,
+                      child: _buildBlurCircle(
+                          300, primaryTurquoise.withOpacity(0.15)),
                     ),
-                    SafeArea(
-                      child: FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: SingleChildScrollView(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(20),
+
+                    CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        // --- SECTION HEADER ---
+                        SliverToBoxAdapter(
+                          child: Container(
+                            padding: const EdgeInsets.only(top: 60, bottom: 30),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Avatar premium
-                                Transform.scale(
-                                  scale: _avatarScale,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          getColorFromName(utilisateur!.nom),
-                                          getColorFromName(utilisateur!.prenom)
-                                              .withOpacity(0.7)
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.all(4),
-                                    child: CircleAvatar(
-                                      radius: 60,
-                                      backgroundColor: Colors.white,
-                                      child: Text(
-                                        utilisateur!.nom[0].toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 42,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                _buildPremiumAvatar(),
                                 const SizedBox(height: 20),
                                 Text(
                                   "${utilisateur!.prenom} ${utilisateur!.nom}",
                                   style: const TextStyle(
                                     fontSize: 28,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                   ),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
-                                  utilisateur!.email,
+                                  "@${utilisateur!.nomUtilisateur}",
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white70,
-                                  ),
+                                      fontSize: 16,
+                                      color: primaryTurquoise,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1.2),
                                 ),
-                                const SizedBox(height: 40),
-
-                                // Info Cards
-                                _infoCard("Prénom", utilisateur!.prenom),
-                                const SizedBox(height: 15),
-                                _infoCard("Nom", utilisateur!.nom),
-                                const SizedBox(height: 15),
-                                _infoCard("Email", utilisateur!.email),
                               ],
                             ),
                           ),
                         ),
-                      ),
+
+                        // --- SECTION CONTENU ---
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          sliver: SliverList(
+                            delegate: SliverChildListDelegate([
+                              const Text(
+                                "Informations du compte",
+                                style: TextStyle(
+                                    color: Colors.white38,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    letterSpacing: 1),
+                              ),
+                              const SizedBox(height: 15),
+
+                              _buildGlassInfoTile(
+                                  "Nom d'utilisateur",
+                                  utilisateur!.nomUtilisateur,
+                                  Icons.alternate_email_rounded),
+                              _buildGlassInfoTile("Email", utilisateur!.email,
+                                  Icons.mail_outline_rounded),
+                              _buildGlassInfoTile(
+                                  "Téléphone",
+                                  utilisateur!.telephone ?? "Non renseigné",
+                                  Icons.phone_android_rounded),
+                              _buildGlassInfoTile(
+                                  "Identité réelle",
+                                  "${utilisateur!.prenom} ${utilisateur!.nom}",
+                                  Icons.badge_outlined),
+
+                              const SizedBox(height: 35),
+                              const Text(
+                                "Réglages & Sécurité",
+                                style: TextStyle(
+                                    color: Colors.white38,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    letterSpacing: 1),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // --- RETOUR À L'ÉTAT "EN DÉVELOPPEMENT" ---
+                              _buildActionRow(
+                                  Icons.lock_reset_rounded,
+                                  "Changer le mot de passe",
+                                  () => _showComingSoonMessage("Mot de passe")),
+
+                              _buildActionRow(
+                                  Icons.language_rounded,
+                                  "Langue de l'application",
+                                  () => _showComingSoonMessage("Langues")),
+
+                              const SizedBox(height: 100),
+                            ]),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
     );
   }
 
-  Widget _infoCard(String label, String value) {
+  // --- WIDGETS DE DESIGN (Avatar, GlassTile, etc.) ---
+
+  Widget _buildPremiumAvatar() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(15),
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [primaryTurquoise, Colors.blueAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-              color: Colors.black26.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4))
+              color: primaryTurquoise.withOpacity(0.3),
+              blurRadius: 25,
+              spreadRadius: 2)
         ],
       ),
+      child: CircleAvatar(
+        radius: 65,
+        backgroundColor: darkBg,
+        child: Text(
+          utilisateur!.nom[0].toUpperCase(),
+          style: const TextStyle(
+              fontSize: 50, fontWeight: FontWeight.w900, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassInfoTile(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: Colors.white.withOpacity(0.03),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Icon(icon, color: primaryTurquoise, size: 22),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.3),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(value,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionRow(IconData icon, String title, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white38, size: 22),
+            const SizedBox(width: 15),
+            Text(title,
+                style: const TextStyle(color: Colors.white70, fontSize: 15)),
+            const Spacer(),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white12, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label,
-              style: TextStyle(
-                  color: Colors.grey[800], fontWeight: FontWeight.w500)),
-          const SizedBox(height: 5),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+          const SizedBox(height: 10),
+          const Text("Profil introuvable",
+              style: TextStyle(color: Colors.white70)),
+          TextButton(
+              onPressed: _loadUtilisateur,
+              child:
+                  Text("Réessayer", style: TextStyle(color: primaryTurquoise))),
         ],
       ),
     );
