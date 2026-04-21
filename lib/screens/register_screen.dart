@@ -62,7 +62,8 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     setState(() => isLoading = true);
 
-    final statusCode = await apiService.register(
+    // On récupère la map au lieu du simple code
+    final result = await apiService.register(
       prenomController.text.trim(),
       nomController.text.trim(),
       emailController.text.trim(),
@@ -73,17 +74,19 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     setState(() => isLoading = false);
 
+    int statusCode = result["status"];
+    String serverMessage = result["message"];
+
     if (statusCode == 201) {
       _showCustomSnackBar("✅ Inscription réussie !", isError: false);
       if (mounted) {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const LoginScreen()));
       }
-    } else if (statusCode == 409) {
-      _showCustomSnackBar("❌ Pseudo ou Email déjà utilisé", isError: true);
     } else {
-      _showCustomSnackBar("⚠️ Erreur lors de l'inscription ($statusCode)",
-          isError: true);
+      // 💡 Ici, on affiche le message précis envoyé par Spring Boot
+      // Que ce soit le téléphone, l'email ou le pseudo, c'est dynamique !
+      _showCustomSnackBar("❌ $serverMessage", isError: true);
     }
   }
 

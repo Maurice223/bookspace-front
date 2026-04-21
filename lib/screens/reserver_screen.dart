@@ -34,6 +34,7 @@ class _ReserverScreenState extends State<ReserverScreen> {
     loadSalles();
   }
 
+  // Vérifie si le créneau est terminé
   bool _isSlotPast(String endTime) {
     DateTime now = DateTime.now();
     List<String> parts = endTime.split(":");
@@ -165,7 +166,6 @@ class _ReserverScreenState extends State<ReserverScreen> {
         ? "assets/images/${salle.image}"
         : "assets/images/default.jpg";
 
-    // ✅ Logique pour le type de salle
     bool isTP = salle.type.toUpperCase() == "TP";
 
     return GestureDetector(
@@ -202,8 +202,6 @@ class _ReserverScreenState extends State<ReserverScreen> {
                     Colors.transparent,
                     Colors.black.withOpacity(0.95)
                   ])))),
-
-              // ✅ BADGE DE TYPE (TP / COURS)
               Positioned(
                 top: 12,
                 left: 12,
@@ -215,7 +213,6 @@ class _ReserverScreenState extends State<ReserverScreen> {
                         ? Colors.purpleAccent.withOpacity(0.8)
                         : Colors.blueAccent.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white24),
                   ),
                   child: Row(
                     children: [
@@ -231,8 +228,6 @@ class _ReserverScreenState extends State<ReserverScreen> {
                   ),
                 ),
               ),
-
-              // CONTENU
               Positioned(
                 bottom: 12,
                 left: 12,
@@ -251,26 +246,25 @@ class _ReserverScreenState extends State<ReserverScreen> {
                     const Text("Aujourd'hui :",
                         style: TextStyle(color: Colors.white38, fontSize: 9)),
                     const SizedBox(height: 5),
+
+                    // --- ICI : TOUT EST VERT (TURQUOISE) ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: slots.map((slot) {
                         bool isPast = _isSlotPast(slot['end']!);
-                        bool isOccupied = salle.reservee && !isPast;
 
                         return Container(
                           width: 32,
                           height: 3,
                           decoration: BoxDecoration(
-                            color: isPast
-                                ? Colors.white10
-                                : (isOccupied
-                                    ? Colors.redAccent
-                                    : primaryTurquoise),
+                            // Si c'est passé -> Gris, sinon -> Vert/Turquoise (peu importe si reservee est vrai)
+                            color: isPast ? Colors.white10 : primaryTurquoise,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         );
                       }).toList(),
                     ),
+
                     const SizedBox(height: 10),
                     Row(
                       children: [

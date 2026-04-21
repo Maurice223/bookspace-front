@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../models/utilisateur.dart';
 import '../services/api_service.dart';
+// ✅ Assure-toi que ce chemin correspond bien à l'emplacement de ton fichier login
+import 'login_screen.dart';
 
 class ProfilScreen extends StatefulWidget {
   final String utilisateurEmail;
@@ -16,7 +18,6 @@ class _ProfilScreenState extends State<ProfilScreen>
     with SingleTickerProviderStateMixin {
   final ApiService apiService = ApiService();
 
-  // Palette de couleurs Premium
   final Color primaryTurquoise = const Color(0xFF26A69A);
   final Color darkBg = const Color(0xFF0F172A);
 
@@ -35,7 +36,16 @@ class _ProfilScreenState extends State<ProfilScreen>
     if (mounted) setState(() => isLoading = false);
   }
 
-  // --- FONCTION DE MESSAGE TEMPORAIRE ---
+  // ✅ FONCTION DE DÉCONNEXION ACTIVÉE
+  void _handleLogout() {
+    // Navigator.pushAndRemoveUntil permet de fermer toutes les pages
+    // et de mettre la page Login comme seule page ouverte.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
+
   void _showComingSoonMessage(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -71,18 +81,15 @@ class _ProfilScreenState extends State<ProfilScreen>
               ? _buildErrorState()
               : Stack(
                   children: [
-                    // Effet de halo lumineux
                     Positioned(
                       top: -100,
                       right: -50,
                       child: _buildBlurCircle(
                           300, primaryTurquoise.withOpacity(0.15)),
                     ),
-
                     CustomScrollView(
                       physics: const BouncingScrollPhysics(),
                       slivers: [
-                        // --- SECTION HEADER ---
                         SliverToBoxAdapter(
                           child: Container(
                             padding: const EdgeInsets.only(top: 60, bottom: 30),
@@ -111,8 +118,6 @@ class _ProfilScreenState extends State<ProfilScreen>
                             ),
                           ),
                         ),
-
-                        // --- SECTION CONTENU ---
                         SliverPadding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           sliver: SliverList(
@@ -126,7 +131,6 @@ class _ProfilScreenState extends State<ProfilScreen>
                                     letterSpacing: 1),
                               ),
                               const SizedBox(height: 15),
-
                               _buildGlassInfoTile(
                                   "Nom d'utilisateur",
                                   utilisateur!.nomUtilisateur,
@@ -137,10 +141,6 @@ class _ProfilScreenState extends State<ProfilScreen>
                                   "Téléphone",
                                   utilisateur!.telephone ?? "Non renseigné",
                                   Icons.phone_android_rounded),
-                              _buildGlassInfoTile(
-                                  "Identité réelle",
-                                  "${utilisateur!.prenom} ${utilisateur!.nom}",
-                                  Icons.badge_outlined),
 
                               const SizedBox(height: 35),
                               const Text(
@@ -152,17 +152,30 @@ class _ProfilScreenState extends State<ProfilScreen>
                                     letterSpacing: 1),
                               ),
                               const SizedBox(height: 10),
-
-                              // --- RETOUR À L'ÉTAT "EN DÉVELOPPEMENT" ---
                               _buildActionRow(
                                   Icons.lock_reset_rounded,
                                   "Changer le mot de passe",
                                   () => _showComingSoonMessage("Mot de passe")),
-
                               _buildActionRow(
                                   Icons.language_rounded,
                                   "Langue de l'application",
                                   () => _showComingSoonMessage("Langues")),
+
+                              const SizedBox(height: 25),
+                              const Text(
+                                "Session",
+                                style: TextStyle(
+                                    color: Colors.white38,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    letterSpacing: 1),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // ✅ BOUTON DÉCONNEXION APPELANT _handleLogout
+                              _buildActionRow(Icons.logout_rounded,
+                                  "Se déconnecter", _handleLogout,
+                                  isDestructive: true),
 
                               const SizedBox(height: 100),
                             ]),
@@ -175,8 +188,6 @@ class _ProfilScreenState extends State<ProfilScreen>
     );
   }
 
-  // --- WIDGETS DE DESIGN (Avatar, GlassTile, etc.) ---
-
   Widget _buildPremiumAvatar() {
     return Container(
       padding: const EdgeInsets.all(3),
@@ -187,12 +198,6 @@ class _ProfilScreenState extends State<ProfilScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: [
-          BoxShadow(
-              color: primaryTurquoise.withOpacity(0.3),
-              blurRadius: 25,
-              spreadRadius: 2)
-        ],
       ),
       child: CircleAvatar(
         radius: 65,
@@ -211,46 +216,41 @@ class _ProfilScreenState extends State<ProfilScreen>
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
         color: Colors.white.withOpacity(0.03),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Icon(icon, color: primaryTurquoise, size: 22),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label,
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.3),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text(value,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Icon(icon, color: primaryTurquoise, size: 22),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text(value,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildActionRow(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildActionRow(IconData icon, String title, VoidCallback onTap,
+      {bool isDestructive = false}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
@@ -258,13 +258,22 @@ class _ProfilScreenState extends State<ProfilScreen>
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white38, size: 22),
+            Icon(icon,
+                color: isDestructive
+                    ? Colors.redAccent.withOpacity(0.8)
+                    : Colors.white38,
+                size: 22),
             const SizedBox(width: 15),
             Text(title,
-                style: const TextStyle(color: Colors.white70, fontSize: 15)),
+                style: TextStyle(
+                    color: isDestructive ? Colors.redAccent : Colors.white70,
+                    fontSize: 15,
+                    fontWeight:
+                        isDestructive ? FontWeight.bold : FontWeight.normal)),
             const Spacer(),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                color: Colors.white12, size: 14),
+            if (!isDestructive)
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.white12, size: 14),
           ],
         ),
       ),

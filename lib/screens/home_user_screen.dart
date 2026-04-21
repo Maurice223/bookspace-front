@@ -318,7 +318,7 @@ class _HomeUserScreenState extends State<HomeUserScreen>
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Hello 👋",
+                Text("Salut 👋",
                     style: TextStyle(color: Colors.white54, fontSize: 14)),
                 Text(widget.utilisateurEmail.split('@')[0],
                     style: const TextStyle(
@@ -438,7 +438,7 @@ class _HomeUserScreenState extends State<HomeUserScreen>
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_rounded), label: "Home"),
+              icon: Icon(Icons.grid_view_rounded), label: "Acceuil"),
           BottomNavigationBarItem(
               icon: Icon(Icons.add_circle_outline_rounded), label: "Réserver"),
           BottomNavigationBarItem(

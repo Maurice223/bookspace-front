@@ -11,8 +11,8 @@ class ApiService {
 
   // ------------------ UTILISATEUR ------------------
 
-  Future<int> register(String prenom, String nom, String email, String password,
-      String nomUtilisateur, String telephone) async {
+  Future<Map<String, dynamic>> register(String prenom, String nom, String email,
+      String password, String nomUtilisateur, String telephone) async {
     final url = Uri.parse('$baseUrl/utilisateurs');
     try {
       final response = await http.post(
@@ -28,9 +28,22 @@ class ApiService {
           "role": "USER",
         }),
       );
-      return response.statusCode;
+
+      // On prépare un message par défaut
+      String message = "";
+      if (response.body.isNotEmpty) {
+        // On décode le JSON renvoyé par ton @PostMapping Spring Boot
+        final data = jsonDecode(response.body);
+        message = data['message'] ?? "";
+      }
+
+      // On renvoie les deux informations clés
+      return {
+        "status": response.statusCode,
+        "message": message,
+      };
     } catch (e) {
-      return 0;
+      return {"status": 0, "message": "Erreur de connexion : ${e.toString()}"};
     }
   }
 
@@ -198,6 +211,17 @@ class ApiService {
     }
   }
 
+  Future<bool> deleteUtilisateur(int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/utilisateurs/delete/$id'),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<List<Reservation>> getAllReservations() async {
     final response = await http.get(Uri.parse("$baseUrl/reservations/all"));
     if (response.statusCode == 200) {
@@ -226,27 +250,6 @@ class ApiService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
-  }
-
-//--------------------Mot de passe ---------------------
-  Future<Map<String, dynamic>> modifierMotDePasse(
-      String email, String ancien, String nouveau) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/modifier-password'), // Ton URL Spring Boot
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "email": email,
-          "ancienPassword": ancien,
-          "nouveauPassword": nouveau,
-        }),
-      );
-
-      // Spring Boot renvoie un objet JSON
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {"success": false, "message": "Erreur serveur : $e"};
-    }
   }
 
   Future<List<String>> getOccupiedSlots(int salleId, DateTime date) async {
